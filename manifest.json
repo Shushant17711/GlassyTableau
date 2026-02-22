@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Glassy Tableau - Beautiful New Tab",
+  "version": "1.0.0",
+  "description": "Unlimited beautiful glassmorphic tiles with drag-and-drop folders for your new tab page",
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "contextMenus",
+    "bookmarks",
+    "scripting",
+    "notifications"
+  ],
+  "chrome_url_overrides": {
+    "newtab": "newtab.html"
+  },
+  "action": {
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "darkmode.js"
+      ],
+      "run_at": "document_end",
+      "all_frames": false,
+      "match_about_blank": false
+    }
+  ]
+}

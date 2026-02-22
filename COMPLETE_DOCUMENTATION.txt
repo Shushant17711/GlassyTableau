@@ -1,0 +1,1086 @@
+================================================================================
+                    GLASSY TABLEAU - COMPLETE DOCUMENTATION
+                    Beautiful New Tab Extension for Edge/Chrome
+================================================================================
+
+PROJECT OVERVIEW
+================================================================================
+Glassy Tableau is a browser extension that transforms your new tab page into a
+beautiful, glassmorphic interface with unlimited customizable tiles, folders,
+notes, to-do lists, and more. Inspired by Yandex Browser's elegant design.
+
+Version: 1.0.0
+Manifest Version: 3
+Compatible Browsers: Microsoft Edge, Google Chrome, Chromium-based browsers
+
+
+CORE FEATURES
+================================================================================
+
+1. UNLIMITED TILES
+   - Add as many website shortcuts as you want (no 24-tile limit)
+   - Beautiful glassmorphism UI with frosted glass effect
+   - Customizable tile sizes (small, medium, large)
+   - Auto-generated favicons for websites
+   - Custom icons support (upload your own)
+
+2. DRAG & DROP FOLDERS
+   - Simply drag one tile over another to create a folder
+   - Unlimited items per folder
+   - Rename folders with a simple click
+   - Visual folder badges showing item count
+   - Nested folder support
+
+3. QUICK ADD FUNCTIONALITY
+   - Click extension icon in toolbar to instantly add current website
+   - Automatic title and favicon extraction
+   - Duplicate detection
+
+4. CUSTOM WALLPAPERS
+   - Upload your own background images (JPG, PNG, GIF, WebP)
+   - Video wallpapers support (MP4, WebM -any size)
+   - Random wallpaper from folder feature
+   - Built-in gradient background
+
+5. LIVE CLOCK & DATE
+   - Elegant time and date display
+   - Day/night icons (☀️/🌙)
+   - Multiple time fonts (10 options)
+   - 12-hour and 24-hour format support
+   - Customizable time and date colors
+
+6. SMART SEARCH BAR
+   - Search or navigate to URLs directly
+   - Multiple search engines (Google, Bing, DuckDuckGo)
+   - Collapsible search bar with liquid glass effect
+   - Theme application to search bar
+
+7. INSPIRATIONAL QUOTES
+   - Display quotes on left and right sides
+   - Deck of cards algorithm (no repetition)
+   - Customizable quote position (both, left, right)
+   - Customizable quote color
+   - Toggle on/off in settings
+
+8. NOTES SYSTEM
+   - Create unlimited notes
+   - Rich text editing
+   - Sidebar with notes list
+   - Timestamps for creation and updates
+   - Add selected text from any webpage via context menu
+
+9. TO-DO LISTS
+   - Create multiple to-do lists
+   - Check/uncheck tasks
+   - Delete individual tasks
+   - Timestamps for lists
+   - Sidebar organization
+
+10. FOCUS MODE
+    - Mark tiles for focus
+    - Hide non-focus tiles
+    - Visual focus badge (🎯)
+    - Toggle with keyboard shortcut (F)
+
+11. DARK MODE
+    - Apply dark filter to all websites (except new tab)
+    - Smart detection of existing dark themes
+    - Toggle in settings
+    - Invert filter with hue rotation
+
+12. KEYBOARD SHORTCUTS
+    - N: New tile
+    - F: Toggle focus mode
+    - W: Change random wallpaper
+    - Arrow keys: Navigate tiles
+    - Enter: Open selected tile
+    - Delete: Delete selected tile
+    - ? or H: Show keyboard shortcuts help
+
+13. TILE THEMES
+    - Custom (individual colors)
+    - Solid colors (Blue, Purple, Green, Orange, Red, Pink, Teal, Dark, Light)
+    - Glassmorphism
+    - Liquid Glass
+    - Gradients (Sunset, Ocean, Forest, Purple Dream, Fire)
+    - Apply theme to all tiles or search bar
+
+14. BACKUP & RESTORE
+    - Export entire state to JSON file
+    - Import state from JSON file
+    - Includes tiles, settings, notes, todos
+
+
+FILE STRUCTURE
+================================================================================
+
+ROOT FILES:
+-----------
+manifest.json           - Extension manifest (permissions, metadata)
+newtab.html            - Main HTML structure
+newtab.css             - Complete styling (glassmorphism, animations)
+newtab.js              - Main JavaScript logic (all functionality)
+background.js          - Service worker (icon click, context menu, bookmarks)
+popup.html             - Extension popup HTML
+popup.js               - Extension popup JavaScript
+darkmode.js            - Dark mode content script
+quotes.json            - Inspirational quotes data (150+ quotes)
+
+DOCUMENTATION FILES:
+-------------------
+README.md              - Main documentation
+INSTALL.txt            - Installation instructions
+CHANGES.md             - Changelog
+QUOTES_GUIDE.md        - Guide for adding custom quotes
+FORCE_RELOAD.md        - Instructions for force reloading
+REFRESH_INSTRUCTIONS.md - Refresh instructions
+TESTING_DARK_MODE.md   - Dark mode testing guide
+
+ICONS FOLDER:
+------------
+icons/icon16.png       - 16x16 extension icon
+icons/icon48.png       - 48x48 extension icon
+icons/icon128.png      - 128x128 extension icon
+
+
+TECHNICAL ARCHITECTURE
+================================================================================
+
+STORAGE SYSTEM:
+--------------
+1. Chrome Storage API (chrome.storage.local)
+   - Tiles data
+   - Settings
+   - Quotes deck and index
+   - Notes
+   - To-do lists
+
+2. IndexedDB (for large files)
+   - Wallpapers (images and videos)
+   - Custom tile icons
+   - Wallpaper folder references
+
+STORAGE KEYS:
+------------
+- tiles: Array of tile objects
+- settings: Settings object
+- quotesDeck: Shuffled quotes array
+- quotesIndex: Current quote index
+- userNotes: Array of note objects
+- userTodos: Array of to-do list objects
+
+DATA STRUCTURES:
+---------------
+
+Tile Object:
+{
+  id: string,              // Unique identifier (timestamp)
+  name: string,            // Display name
+  url: string,             // Website URL
+  icon: string,            // Icon URL or data URL
+  type: 'link' | 'folder', // Tile type
+  color: string,           // Background color (optional)
+  items: Array,            // Folder items (if type is 'folder')
+  focusEnabled: boolean    // Focus mode flag (optional)
+}
+
+Settings Object:
+{
+  tileSize: 'small' | 'medium' | 'large',
+  showQuotes: boolean,
+  quotePosition: 'both' | 'left' | 'right',
+  quoteTextColor: string,
+  timeFont: string,
+  timeColor: string,
+  dateColor: string,
+  searchEngine: 'google' | 'bing' | 'duckduckgo',
+  timeFormat: '12h' | '24h',
+  tileTheme: string,
+  applyThemeToSearchbar: boolean,
+  focusModeActive: boolean,
+  darkModeEnabled: boolean,
+  keyboardShortcuts: object
+}
+
+Note Object:
+{
+  id: string,              // Unique identifier
+  title: string,           // Note title
+  content: string,         // Note content
+  source: string,          // Source URL (optional)
+  createdAt: number,       // Timestamp
+  updatedAt: number        // Timestamp
+}
+
+To-Do List Object:
+{
+  id: string,              // Unique identifier
+  title: string,           // List title
+  items: Array,            // Array of to-do items
+  createdAt: number,       // Timestamp
+  updatedAt: number        // Timestamp
+}
+
+To-Do Item Object:
+{
+  id: string,              // Unique identifier
+  text: string,            // Task text
+  completed: boolean,      // Completion status
+  createdAt: number        // Timestamp
+}
+
+
+MAIN JAVASCRIPT FUNCTIONS
+================================================================================
+
+INITIALIZATION:
+--------------
+- DOMContentLoaded event listener
+- loadData() - Load all data from storage
+- loadQuotes() - Load quotes from JSON file
+- initializeClock() - Start clock updates
+- renderTiles() - Render tiles grid
+- displayQuotes() - Display random quotes
+- initializeSearch() - Setup search functionality
+- initializeModals() - Setup modal dialogs
+- initializeContextMenu() - Setup right-click menu
+- initializeNotes() - Setup notes system
+- initializeTodos() - Setup to-do lists
+- initializeKeyboardShortcuts() - Setup keyboard shortcuts
+
+DATA MANAGEMENT:
+---------------
+- saveData() - Save tiles to storage
+- saveSettings() - Save settings to storage
+- saveNotes() - Save notes to storage
+- saveTodos() - Save to-do lists to storage
+- openDB() - Open IndexedDB connection
+- saveWallpaperToDB() - Save wallpaper to IndexedDB
+- loadWallpaperFromDB() - Load wallpaper from IndexedDB
+- saveCustomIconToDB() - Save custom icon to IndexedDB
+- loadCustomIconFromDB() - Load custom icon from IndexedDB
+
+TILE OPERATIONS:
+---------------
+- renderTiles() - Render all tiles
+- createTileElement() - Create tile DOM element
+- addTile() - Add new tile
+- editTile() - Edit existing tile
+- deleteTile() - Delete tile
+- openEditModal() - Open edit modal
+- closeEditModal() - Close edit modal
+
+FOLDER OPERATIONS:
+-----------------
+- createFolder() - Create new folder
+- openFolder() - Open folder modal
+- closeFolder() - Close folder modal
+- addToFolder() - Add tile to folder
+- removeFromFolder() - Remove tile from folder
+- renameFolder() - Rename folder
+
+DRAG & DROP:
+-----------
+- handleDragStart() - Start dragging tile
+- handleDragOver() - Handle drag over tile
+- handleDragEnter() - Handle drag enter tile
+- handleDragLeave() - Handle drag leave tile
+- handleDrop() - Handle drop tile
+- handleDragEnd() - End dragging tile
+
+SEARCH:
+------
+- initializeSearch() - Setup search bar
+- handleSearch() - Handle search submission
+- initializeSearchEngine() - Setup search engine dropdown
+- changeSearchEngine() - Change search engine
+
+WALLPAPER:
+---------
+- handleWallpaperUpload() - Handle wallpaper file upload
+- removeWallpaper() - Remove current wallpaper
+- changeRandomWallpaper() - Change to random wallpaper from folder
+- initializeWallpaperFolder() - Setup wallpaper folder selection
+
+CLOCK:
+-----
+- initializeClock() - Start clock updates
+- updateClock() - Update time and date display
+- applyTimeFont() - Apply selected time font
+- cycleTimeFont() - Cycle through time fonts
+- applyTimeColor() - Apply time color
+- applyDateColor() - Apply date color
+
+QUOTES:
+------
+- loadQuotes() - Load quotes from JSON
+- displayQuotes() - Display random quotes
+- shuffleQuotesDeck() - Shuffle quotes deck
+- getNextQuotes() - Get next quotes from deck
+- changeIndividualQuote() - Change single quote
+- applyQuoteColor() - Apply quote text color
+
+NOTES:
+-----
+- initializeNotes() - Setup notes system
+- renderNotesList() - Render notes sidebar
+- createNote() - Create new note
+- selectNote() - Select note for editing
+- saveCurrentNote() - Save current note
+- deleteNote() - Delete note
+- getDefaultNoteTitle() - Generate default note title
+
+TO-DO LISTS:
+-----------
+- initializeTodos() - Setup to-do lists
+- renderTodoListsList() - Render to-do lists sidebar
+- createTodoList() - Create new to-do list
+- selectTodoList() - Select to-do list for editing
+- addTodoItem() - Add new to-do item
+- toggleTodoItem() - Toggle to-do item completion
+- deleteTodoItem() - Delete to-do item
+- deleteTodoList() - Delete to-do list
+
+FOCUS MODE:
+----------
+- toggleFocusMode() - Toggle focus mode on/off
+- applyFocusMode() - Apply focus mode visual effects
+- toggleTileFocus() - Toggle focus for specific tile
+
+DARK MODE:
+---------
+- initDarkMode() - Initialize dark mode (in darkmode.js)
+- applyDarkMode() - Apply dark mode filter
+- removeDarkMode() - Remove dark mode filter
+- isDarkThemeAlready() - Check if site has dark theme
+
+KEYBOARD SHORTCUTS:
+------------------
+- initializeKeyboardShortcuts() - Setup keyboard shortcuts
+- handleGlobalKeydown() - Handle keyboard events
+- navigateTiles() - Navigate tiles with arrow keys
+- openSelectedTile() - Open selected tile
+- deleteSelectedTile() - Delete selected tile
+- showKeyboardShortcutsHelp() - Show shortcuts help modal
+
+THEMES:
+------
+- applyTileTheme() - Apply theme to all tiles
+- applyThemeToSearchbar() - Apply theme to search bar
+- getTileThemeStyles() - Get theme CSS styles
+
+UTILITIES:
+---------
+- showToast() - Show toast notification
+- showConfirmModal() - Show confirmation modal
+- exportState() - Export all data to JSON
+- importState() - Import data from JSON
+- generateId() - Generate unique ID
+
+
+CSS CLASSES & STYLING
+================================================================================
+
+MAIN CONTAINERS:
+---------------
+.container              - Main page container
+.tiles-grid            - Tiles grid container
+.tiles-grid.size-small - Small tile size
+.tiles-grid.size-medium - Medium tile size
+.tiles-grid.size-large - Large tile size
+
+TILES:
+-----
+.tile                  - Base tile style
+.tile:hover            - Tile hover effect
+.tile.dragging         - Tile being dragged
+.tile.drag-over        - Tile being dragged over
+.tile.drag-over-edge   - Tile edge drop indicator
+.tile.drag-over-center - Tile center drop indicator
+.tile.folder-highlight - Folder creation highlight
+.tile.tile-selected    - Selected tile (keyboard navigation)
+.tile.add-tile         - Add new tile button
+.tile.folder           - Folder tile
+
+TILE ELEMENTS:
+-------------
+.tile-icon             - Tile icon image
+.tile-name             - Tile name text
+.delete-btn            - Tile delete button
+.folder-badge          - Folder item count badge
+.focus-badge           - Focus mode badge
+
+FOLDER:
+------
+.folder-preview        - Folder preview grid
+.folder-preview-tile   - Folder preview tile
+.folder-preview-icon   - Folder preview icon
+.folder-modal          - Folder modal dialog
+.folder-header         - Folder modal header
+.folder-grid           - Folder contents grid
+.folder-name-input     - Folder name input
+
+CLOCK:
+-----
+.clock-container       - Clock container
+.time                  - Time display
+.time.font-outfit      - Outfit font
+.time.font-orbitron    - Orbitron font
+.time.font-righteous   - Righteous font
+.time.font-bebas       - Bebas Neue font
+.time.font-audiowide   - Audiowide font
+.time.font-monoton     - Monoton font
+.time.font-bungee      - Bungee font
+.time.font-russo       - Russo One font
+.time.font-rajdhani    - Rajdhani font
+.time.font-exo         - Exo 2 font
+.date                  - Date display
+
+SEARCH:
+------
+.search-container      - Search bar container
+.search-container.collapsed - Collapsed search bar
+#searchInput           - Search input field
+.search-button         - Search button (collapsed state)
+.search-engine-dropdown - Search engine dropdown
+.search-engine-btn     - Search engine button
+.search-engine-menu    - Search engine menu
+.search-engine-item    - Search engine menu item
+
+QUOTES:
+------
+.quote-box             - Quote box container
+.quote-box.visible     - Visible quote box
+.quote-left            - Left quote box
+.quote-right           - Right quote box
+.quote-text            - Quote text
+
+MODALS:
+------
+.modal                 - Modal overlay
+.modal-content         - Modal content container
+.glass                 - Glassmorphism effect
+.close                 - Close button
+
+SETTINGS:
+--------
+.settings-sidebar      - Settings sidebar
+.settings-sidebar.open - Open settings sidebar
+.sidebar-header        - Sidebar header
+.sidebar-content       - Sidebar content
+.settings-section      - Settings section
+.settings-overlay      - Settings overlay
+
+NOTES:
+-----
+.notes-modal           - Notes modal
+.notes-container       - Notes container
+.notes-sidebar         - Notes sidebar
+.notes-sidebar-header  - Notes sidebar header
+.notes-list            - Notes list
+.notes-editor          - Notes editor
+.notes-editor-header   - Notes editor header
+.notes-editor-body     - Notes editor body
+.notes-editor-footer   - Notes editor footer
+.note-title-input      - Note title input
+.note-timestamp        - Note timestamp
+
+TO-DO LISTS:
+-----------
+.todo-items-container  - To-do items container
+.todo-item             - To-do item
+.todo-checkbox         - To-do checkbox
+.todo-text             - To-do text
+.todo-delete           - To-do delete button
+.todo-add-item         - Add to-do item container
+.new-todo-input        - New to-do input
+
+FLOATING BUTTONS:
+----------------
+.floating-notes-btn    - Notes button
+.floating-focus-btn    - Focus mode button
+.floating-todo-btn     - To-do list button
+.floating-wallpaper-btn - Wallpaper button
+.floating-settings-btn - Settings button
+
+UTILITIES:
+---------
+.toast-container       - Toast notification container
+.toast                 - Toast notification
+.confirm-modal         - Confirmation modal
+.liquid-glass          - Liquid glass effect
+.context-menu          - Context menu
+.keyboard-help-modal   - Keyboard shortcuts help modal
+
+
+PERMISSIONS EXPLAINED
+================================================================================
+
+storage:
+- Required to save tiles, settings, notes, and to-do lists
+- Uses chrome.storage.local API
+
+tabs:
+- Required to get current tab information when adding sites
+- Used in background.js for Quick Add feature
+
+activeTab:
+- Required to access current page when using Quick Add
+- Minimal permission for current tab only
+
+contextMenus:
+- Required to add "Add to Notes" context menu item
+- Allows adding selected text to notes
+
+bookmarks:
+- Optional permission for importing bookmarks on first install
+- Converts bookmarks to tiles automatically
+
+scripting:
+- Required for dark mode content script injection
+- Applies dark mode filter to all websites
+
+notifications:
+- Required to show success/error notifications
+- Used when adding sites via Quick Add
+
+
+BROWSER COMPATIBILITY
+================================================================================
+
+SUPPORTED BROWSERS:
+------------------
+- Microsoft Edge (Chromium) - Primary target
+- Google Chrome - Fully supported
+- Brave - Fully supported
+- Opera - Fully supported
+- Vivaldi - Fully supported
+- Any Chromium-based browser
+
+MINIMUM VERSIONS:
+----------------
+- Manifest V3 support required
+- Chrome/Edge 88+
+- Modern JavaScript (ES6+) support
+
+TESTED FEATURES:
+---------------
+✓ Glassmorphism effects (backdrop-filter)
+✓ IndexedDB for large files
+✓ Chrome Storage API
+✓ Drag and Drop API
+✓ File API for wallpaper upload
+✓ Context Menus API
+✓ Notifications API
+✓ Service Workers (background.js)
+
+
+INSTALLATION GUIDE
+================================================================================
+
+STEP 1: DOWNLOAD FILES
+----------------------
+Download all extension files to a folder on your computer.
+Keep the folder structure intact:
+  - All .js, .html, .css, .json files in root
+  - icons/ folder with all icon files
+
+STEP 2: LOAD IN BROWSER
+-----------------------
+1. Open Microsoft Edge or Chrome
+2. Navigate to edge://extensions/ or chrome://extensions/
+3. Enable "Developer mode" (toggle in bottom-left or top-right)
+4. Click "Load unpacked"
+5. Select the folder containing the extension files
+6. Extension should now appear in your extensions list
+
+STEP 3: VERIFY INSTALLATION
+---------------------------
+1. Open a new tab - you should see the Glassy Tableau interface
+2. Click the extension icon in toolbar to test Quick Add
+3. Check settings by clicking the settings button (⚙️)
+
+STEP 4: OPTIONAL CONFIGURATION
+------------------------------
+1. Upload a custom wallpaper
+2. Adjust tile size
+3. Configure search engine
+4. Enable/disable quotes
+5. Set up keyboard shortcuts
+6. Enable dark mode
+
+
+USAGE GUIDE
+================================================================================
+
+ADDING TILES:
+------------
+Method 1: Click the "+" tile on new tab page
+Method 2: Click extension icon in toolbar while on any website
+Method 3: Right-click on page and select "Add to Notes" (for notes)
+
+CREATING FOLDERS:
+----------------
+1. Drag one tile over another tile
+2. Hold for 0.5 seconds
+3. Folder will be created automatically
+4. Click folder to open and manage contents
+
+EDITING TILES:
+-------------
+1. Right-click on tile
+2. Select "Change website"
+3. Edit name, URL, icon, or color
+4. Click "Save"
+
+DELETING TILES:
+--------------
+1. Right-click on tile
+2. Select "Remove"
+3. Or press Delete key when tile is selected
+
+UPLOADING WALLPAPER:
+-------------------
+1. Click settings button (⚙️)
+2. Click "Choose File" under Wallpaper
+3. Select image or video file
+4. Wallpaper will be applied immediately
+
+CHANGING TILE SIZE:
+------------------
+1. Click settings button (⚙️)
+2. Select size from "Tile size" dropdown
+3. All tiles will resize automatically
+
+APPLYING THEMES:
+---------------
+1. Click settings button (⚙️)
+2. Select theme from "Tile Theme" dropdown
+3. Optionally check "Apply theme to search bar"
+4. Theme will be applied to all tiles
+
+USING FOCUS MODE:
+----------------
+1. Right-click on tile
+2. Select "Mark for Focus"
+3. Click focus mode button (🎯) or press F
+4. Only focus-enabled tiles will be visible
+
+CREATING NOTES:
+--------------
+1. Click notes button (📝)
+2. Click "+" to create new note
+3. Enter title and content
+4. Note is saved automatically
+
+CREATING TO-DO LISTS:
+--------------------
+1. Click to-do button (✓)
+2. Click "+" to create new list
+3. Enter list title
+4. Add tasks using input field
+5. Check/uncheck tasks as completed
+
+KEYBOARD SHORTCUTS:
+------------------
+N - Create new tile
+F - Toggle focus mode
+W - Change random wallpaper
+Arrow keys - Navigate tiles
+Enter - Open selected tile
+Delete - Delete selected tile
+? or H - Show keyboard shortcuts help
+
+BACKUP & RESTORE:
+----------------
+Export:
+1. Click settings button (⚙️)
+2. Click "Export State"
+3. JSON file will be downloaded
+
+Import:
+1. Click settings button (⚙️)
+2. Click "Import State"
+3. Select JSON file
+4. All data will be restored
+
+
+CUSTOMIZATION OPTIONS
+================================================================================
+
+TILE SIZES:
+----------
+- Small: 70px tiles, 800px max width
+- Medium: 90px tiles, 900px max width (default)
+- Large: 110px tiles, 1000px max width
+
+TIME FONTS:
+----------
+1. Outfit (Default) - Clean, modern
+2. Orbitron - Futuristic, tech
+3. Righteous - Bold, strong
+4. Bebas Neue - Tall, condensed
+5. Audiowide - Tech, digital
+6. Monoton - Retro, neon
+7. Bungee - Playful, fun
+8. Russo One - Strong, bold
+9. Rajdhani - Modern, sleek
+10. Exo 2 - Sleek, elegant
+
+TIME FORMATS:
+------------
+- 24-hour: 19:09
+- 12-hour: 7:09 PM
+
+SEARCH ENGINES:
+--------------
+- Google (default)
+- Bing
+- DuckDuckGo
+
+QUOTE POSITIONS:
+---------------
+- Both sides (default)
+- Left only
+- Right only
+
+TILE THEMES:
+-----------
+Solid Colors:
+- Blue, Purple, Green, Orange, Red, Pink, Teal, Dark, Light
+
+Special Effects:
+- Glassmorphism - Frosted glass effect
+- Liquid Glass - Enhanced glass with shine
+
+Gradients:
+- Sunset - Orange to pink
+- Ocean - Blue to teal
+- Forest - Green to dark green
+- Purple Dream - Purple to pink
+- Fire - Red to orange
+
+WALLPAPER FORMATS:
+-----------------
+Images: JPG, PNG, GIF, WebP (up to 5MB)
+Videos: MP4, WebM (up to 3MB recommended)
+
+
+TROUBLESHOOTING
+================================================================================
+
+EXTENSION DOESN'T LOAD:
+-----------------------
+- Ensure all files are in the same folder
+- Check that Developer mode is enabled
+- Try removing and re-adding the extension
+- Check browser console for errors (F12)
+
+NEW TAB PAGE DOESN'T SHOW:
+-------------------------
+- Restart browser after installing
+- Check that extension is enabled in extensions page
+- Try opening new tab in Incognito mode
+- Ensure no other new tab extensions are conflicting
+
+TILES DON'T SAVE:
+----------------
+- Check browser console for errors (F12)
+- Ensure extension has storage permissions
+- Try clearing browser cache
+- Check available storage space
+
+DRAG AND DROP NOT WORKING:
+-------------------------
+- Ensure you're clicking and holding on the tile
+- Drag over another tile until you see highlight
+- Release to create folder or reorder
+- Check that tiles are not in edit mode
+
+WALLPAPER NOT UPLOADING:
+-----------------------
+- Check file size (images: 5MB max, videos: 3MB max)
+- Ensure file format is supported
+- Try a different image/video
+- Check browser console for errors
+
+DARK MODE NOT WORKING:
+---------------------
+- Ensure dark mode is enabled in settings
+- Check that content script has permissions
+- Some sites may already have dark themes
+- Try refreshing the page
+
+QUOTES NOT SHOWING:
+------------------
+- Check that "Show quotes" is enabled in settings
+- Ensure quotes.json file is present
+- Check quote position setting
+- Try refreshing the page
+
+KEYBOARD SHORTCUTS NOT WORKING:
+------------------------------
+- Ensure you're not typing in an input field
+- Check that shortcuts don't conflict with browser shortcuts
+- Try clicking on the page background first
+- Check keyboard shortcuts help (? or H)
+
+
+ADVANCED FEATURES
+================================================================================
+
+CUSTOM QUOTES:
+-------------
+1. Open quotes.json file
+2. Add your quotes as strings in the array
+3. Save the file
+4. Reload extension in browser
+5. Open new tab to see new quotes
+
+WALLPAPER FOLDER:
+----------------
+1. Click settings button (⚙️)
+2. Click "Select Wallpaper Folder"
+3. Select folder containing images
+4. Press W key to cycle through wallpapers
+5. Random wallpaper will be selected each time
+
+BOOKMARK IMPORT:
+---------------
+- On first install, extension automatically imports bookmarks
+- Bookmarks are converted to tiles and folders
+- Maintains folder structure
+- Can be disabled by removing bookmarks permission
+
+CONTEXT MENU:
+------------
+- Right-click on any webpage
+- Select text
+- Right-click selected text
+- Choose "Add to Notes"
+- Text will be added as a new note
+
+EXPORT/IMPORT STATE:
+-------------------
+Export includes:
+- All tiles and folders
+- All settings
+- All notes
+- All to-do lists
+- Wallpaper references (not actual files)
+
+Import will:
+- Replace all existing data
+- Restore all tiles and folders
+- Restore all settings
+- Restore all notes and to-do lists
+
+
+PERFORMANCE OPTIMIZATION
+================================================================================
+
+LAZY LOADING:
+------------
+- Non-critical features loaded with requestIdleCallback
+- Deferred initialization for better startup performance
+- Async/await for all storage operations
+
+INDEXEDDB USAGE:
+---------------
+- Large files (wallpapers, icons) stored in IndexedDB
+- Prevents storage quota issues
+- Faster access for large files
+- Automatic cleanup on deletion
+
+EFFICIENT RENDERING:
+-------------------
+- Virtual scrolling for large tile collections
+- Debounced search input
+- Throttled drag events
+- CSS animations for smooth transitions
+
+MEMORY MANAGEMENT:
+-----------------
+- Cleanup of event listeners
+- Proper disposal of IndexedDB connections
+- Garbage collection friendly code
+- No memory leaks in long-running sessions
+
+
+SECURITY CONSIDERATIONS
+================================================================================
+
+DATA PRIVACY:
+------------
+- All data stored locally on device
+- No external servers or analytics
+- No data collection or tracking
+- No network requests except for favicons
+
+PERMISSIONS:
+-----------
+- Minimal permissions requested
+- Storage: Local data only
+- Tabs: Current tab info only
+- ActiveTab: Current page only
+- No access to browsing history
+- No access to personal data
+
+CONTENT SECURITY:
+----------------
+- No eval() or unsafe code execution
+- Sanitized user inputs
+- Safe HTML rendering
+- No inline scripts in HTML
+
+WALLPAPER SAFETY:
+----------------
+- File size limits prevent abuse
+- Supported formats only
+- Local storage only
+- No external URLs executed
+
+
+DEVELOPMENT NOTES
+================================================================================
+
+CODE STRUCTURE:
+--------------
+- Modular JavaScript functions
+- Clear separation of concerns
+- Event-driven architecture
+- Async/await for all async operations
+
+NAMING CONVENTIONS:
+------------------
+- camelCase for variables and functions
+- PascalCase for classes
+- UPPER_CASE for constants
+- Descriptive names for clarity
+
+ERROR HANDLING:
+--------------
+- Try-catch blocks for all async operations
+- Console logging for debugging
+- User-friendly error messages
+- Graceful degradation
+
+BROWSER APIS USED:
+-----------------
+- chrome.storage.local - Data persistence
+- IndexedDB - Large file storage
+- chrome.tabs - Tab information
+- chrome.contextMenus - Context menu
+- chrome.notifications - Notifications
+- chrome.bookmarks - Bookmark import
+- Drag and Drop API - Tile reordering
+- File API - Wallpaper upload
+
+
+FUTURE ENHANCEMENTS
+================================================================================
+
+PLANNED FEATURES:
+----------------
+- Cloud sync across devices
+- More tile themes and animations
+- Weather widget
+- Calendar integration
+- RSS feed reader
+- Pomodoro timer
+- Habit tracker
+- Password-protected notes
+- Tile groups/categories
+- Import/export individual folders
+- Tile search functionality
+- Tile sorting options
+- More keyboard shortcuts
+- Accessibility improvements
+- Mobile browser support
+
+
+VERSION HISTORY
+================================================================================
+
+Version 1.0.0 (Current)
+-----------------------
+- Initial release
+- Unlimited tiles and folders
+- Drag and drop functionality
+- Custom wallpapers (images and videos)
+- Live clock and date
+- Smart search bar
+- Inspirational quotes
+- Notes system
+- To-do lists
+- Focus mode
+- Dark mode
+- Keyboard shortcuts
+- Tile themes
+- Backup and restore
+- Bookmark import
+- Context menu integration
+
+
+CREDITS & ACKNOWLEDGMENTS
+================================================================================
+
+Design Inspiration:
+- Yandex Browser's elegant new tab design
+- Glassmorphism UI trend
+- Material Design principles
+
+Fonts:
+- Google Fonts (Outfit, Orbitron, Righteous, Bebas Neue, Audiowide,
+  Monoton, Bungee, Russo One, Rajdhani, Exo 2)
+
+Icons:
+- Material Design Icons (SVG)
+
+Technologies:
+- HTML5, CSS3, JavaScript (ES6+)
+- Chrome Extension APIs
+- IndexedDB
+- Drag and Drop API
+- File API
+
+Development:
+- Built with love and attention to detail
+- Tested on multiple browsers and devices
+- Optimized for performance and user experience
+
+
+SUPPORT & CONTACT
+================================================================================
+
+For issues, questions, or feature requests:
+- Check the troubleshooting section above
+- Review the usage guide
+- Check browser console for errors (F12)
+- Ensure you have the latest version
+
+Common Issues:
+- Extension not loading: Check Developer mode is enabled
+- Tiles not saving: Check storage permissions
+- Wallpaper not uploading: Check file size and format
+- Dark mode not working: Check content script permissions
+
+
+LICENSE & USAGE
+================================================================================
+
+This extension is provided as-is for personal use.
+All data stays on your device - no external servers or tracking.
+Feel free to customize and modify for your own use.
+
+
+================================================================================
+                              END OF DOCUMENTATION
+================================================================================
+
+Last Updated: February 2026
+Version: 1.0.0
+Manifest Version: 3
+
+Thank you for using Glassy Tableau!
+Enjoy your beautiful new tab experience! 🎨✨
