@@ -148,14 +148,15 @@ TECHNICAL ARCHITECTURE
 
 STORAGE SYSTEM:
 --------------
-1. Chrome Storage API (chrome.storage.local)
-   - Tiles data
-   - Settings
-   - Quotes deck and index
-   - Notes
-   - To-do lists
+1. Chrome Storage API (chrome.storage.sync)
+   - Tiles data (synced across devices)
+   - Settings (synced across devices)
+   - Quotes deck and index (synced across devices)
+   - Notes (synced across devices)
+   - To-do lists (synced across devices)
+   - Automatic fallback to chrome.storage.local if quota exceeded
 
-2. IndexedDB (for large files)
+2. IndexedDB (for large files - local only)
    - Wallpapers (images and videos)
    - Custom tile icons
    - Wallpaper folder references
@@ -518,7 +519,8 @@ PERMISSIONS EXPLAINED
 
 storage:
 - Required to save tiles, settings, notes, and to-do lists
-- Uses chrome.storage.local API
+- Uses chrome.storage.sync API for cross-device synchronization
+- Automatic fallback to chrome.storage.local if quota exceeded
 
 tabs:
 - Required to get current tab information when adding sites
@@ -967,8 +969,9 @@ ERROR HANDLING:
 
 BROWSER APIS USED:
 -----------------
-- chrome.storage.local - Data persistence
-- IndexedDB - Large file storage
+- chrome.storage.sync - Data persistence with cross-device sync
+- chrome.storage.local - Fallback storage for large data
+- IndexedDB - Large file storage (wallpapers, icons)
 - chrome.tabs - Tab information
 - chrome.contextMenus - Context menu
 - chrome.notifications - Notifications

@@ -223,6 +223,11 @@ let selectedTileIndex = -1; // Currently selected tile index for keyboard naviga
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
+    // Run migration from local to sync storage (one-time operation)
+    if (typeof migrateToSync === 'function') {
+        await migrateToSync();
+    }
+
     // Load critical data in parallel
     const [dataLoaded, quotesLoaded] = await Promise.all([
         loadData(),
@@ -281,9 +286,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // Listen for storage changes
+    // Listen for storage changes from sync
     chrome.storage.onChanged.addListener((changes, namespace) => {
-        if (namespace === 'local') {
+        if (namespace === 'sync') {
             if (changes[STORAGE_KEYS.TILES]) {
                 tiles = changes[STORAGE_KEYS.TILES].newValue || [];
                 renderTiles();
@@ -309,17 +314,20 @@ document.addEventListener('DOMContentLoaded', async () => {
 // Load data from storage
 async function loadData() {
     try {
-        const result = await chrome.storage.local.get([
-            STORAGE_KEYS.TILES,
-            STORAGE_KEYS.SETTINGS,
-            STORAGE_KEYS.QUOTES_DECK,
-            STORAGE_KEYS.QUOTES_INDEX,
-            STORAGE_KEYS.NOTES,
-            STORAGE_KEYS.TODOS
+        // Load data with chunking support
+        const tiles_data = await getChunkedData(STORAGE_KEYS.TILES);
+        const settings_data = await getChunkedData(STORAGE_KEYS.SETTINGS);
+        const quotesDeck_data = await getChunkedData(STORAGE_KEYS.QUOTES_DECK);
+        const notes_data = await getChunkedData(STORAGE_KEYS.NOTES);
+        const todos_data = await getChunkedData(STORAGE_KEYS.TODOS);
+
+        // Get non-chunked data
+        const result = await chrome.storage.sync.get([
+            STORAGE_KEYS.QUOTES_INDEX
         ]);
 
-        tiles = result[STORAGE_KEYS.TILES] || [];
-        settings = result[STORAGE_KEYS.SETTINGS] || {
+        tiles = tiles_data || [];
+        settings = settings_data || {
             tileSize: 'medium',
             showQuotes: true,
             quotePosition: 'both',
@@ -354,11 +362,11 @@ async function loadData() {
             settings.darkModeEnabled = false;
         }
 
-        quotesDeck = result[STORAGE_KEYS.QUOTES_DECK] || [];
+        quotesDeck = quotesDeck_data || [];
         quotesIndex = result[STORAGE_KEYS.QUOTES_INDEX] || 0;
 
         // Ensure notes is always an array (handle old string format)
-        const loadedNotes = result[STORAGE_KEYS.NOTES];
+        const loadedNotes = notes_data;
         if (Array.isArray(loadedNotes)) {
             notes = loadedNotes;
         } else if (typeof loadedNotes === 'string' && loadedNotes) {
@@ -371,15 +379,13 @@ async function loadData() {
                 updatedAt: Date.now()
             }];
             // Save in new format
-            await chrome.storage.local.set({
-                [STORAGE_KEYS.NOTES]: notes
-            });
+            await setWithChunking(STORAGE_KEYS.NOTES, notes);
         } else {
             notes = [];
         }
 
         // Load to-do lists
-        const loadedTodos = result[STORAGE_KEYS.TODOS];
+        const loadedTodos = todos_data;
         if (Array.isArray(loadedTodos)) {
             todos = loadedTodos;
         } else {
@@ -421,9 +427,7 @@ async function loadData() {
 // Save data to storage
 async function saveData() {
     try {
-        await chrome.storage.local.set({
-            [STORAGE_KEYS.TILES]: tiles
-        });
+        await setWithChunking(STORAGE_KEYS.TILES, tiles);
         console.log('Saved tiles:', tiles);
     } catch (error) {
         console.error('Error saving data:', error);
@@ -432,9 +436,7 @@ async function saveData() {
 
 async function saveSettings() {
     try {
-        await chrome.storage.local.set({
-            [STORAGE_KEYS.SETTINGS]: settings
-        });
+        await setWithChunking(STORAGE_KEYS.SETTINGS, settings);
     } catch (error) {
         console.error('Error saving settings:', error);
     }
@@ -3726,10 +3728,12 @@ async function exportState() {
     try {
         showToast('Preparing export...', 'info');
 
-        const result = await chrome.storage.local.get([
-            STORAGE_KEYS.TILES,
-            STORAGE_KEYS.SETTINGS,
-            STORAGE_KEYS.QUOTES_DECK,
+        // Load data with chunking support
+        const tiles_data = await getChunkedData(STORAGE_KEYS.TILES);
+        const settings_data = await getChunkedData(STORAGE_KEYS.SETTINGS);
+        const quotesDeck_data = await getChunkedData(STORAGE_KEYS.QUOTES_DECK);
+
+        const result = await chrome.storage.sync.get([
             STORAGE_KEYS.QUOTES_INDEX
         ]);
 
@@ -3737,11 +3741,11 @@ async function exportState() {
         const { wallpaper, wallpaperType } = await loadWallpaperFromDB();
 
         const exportData = {
-            tiles: result[STORAGE_KEYS.TILES] || [],
-            settings: result[STORAGE_KEYS.SETTINGS] || { tileSize: 'medium', showQuotes: true, quotePosition: 'both', timeFont: 'outfit', searchEngine: 'google', timeFormat: '24h', tileTheme: 'custom', applyThemeToSearchbar: false },
+            tiles: tiles_data || [],
+            settings: settings_data || { tileSize: 'medium', showQuotes: true, quotePosition: 'both', timeFont: 'outfit', searchEngine: 'google', timeFormat: '24h', tileTheme: 'custom', applyThemeToSearchbar: false },
             wallpaper: wallpaper || null,
             wallpaperType: wallpaperType || 'image',
-            quotesDeck: result[STORAGE_KEYS.QUOTES_DECK] || [],
+            quotesDeck: quotesDeck_data || [],
             quotesIndex: result[STORAGE_KEYS.QUOTES_INDEX] || 0,
             exportDate: new Date().toISOString(),
             version: '1.0.0'
@@ -3793,13 +3797,11 @@ async function importState(event) {
             return;
         }
 
-        // Import data to chrome storage
-        await chrome.storage.local.set({
-            [STORAGE_KEYS.TILES]: importData.tiles,
-            [STORAGE_KEYS.SETTINGS]: importData.settings || { tileSize: 'medium', showQuotes: true, quotePosition: 'both', timeFont: 'outfit', searchEngine: 'google', timeFormat: '24h', tileTheme: 'custom', applyThemeToSearchbar: false },
-            [STORAGE_KEYS.QUOTES_DECK]: importData.quotesDeck || [],
-            [STORAGE_KEYS.QUOTES_INDEX]: importData.quotesIndex || 0
-        });
+        // Import data to chrome storage with chunking for large items
+        await setWithChunking(STORAGE_KEYS.TILES, importData.tiles);
+        await setWithChunking(STORAGE_KEYS.SETTINGS, importData.settings || { tileSize: 'medium', showQuotes: true, quotePosition: 'both', timeFont: 'outfit', searchEngine: 'google', timeFormat: '24h', tileTheme: 'custom', applyThemeToSearchbar: false });
+        await setWithChunking(STORAGE_KEYS.QUOTES_DECK, importData.quotesDeck || []);
+        await chrome.storage.sync.set({ [STORAGE_KEYS.QUOTES_INDEX]: importData.quotesIndex || 0 });
 
         // Import wallpaper to IndexedDB if present
         if (importData.wallpaper) {
@@ -3859,8 +3861,8 @@ async function shuffleDeck() {
 
     // Save shuffled deck to storage (only save indices, not the actual quotes)
     try {
-        await chrome.storage.local.set({
-            [STORAGE_KEYS.QUOTES_DECK]: quotesDeck,
+        await setWithChunking(STORAGE_KEYS.QUOTES_DECK, quotesDeck);
+        await chrome.storage.sync.set({
             [STORAGE_KEYS.QUOTES_INDEX]: quotesIndex
         });
         console.log('Deck shuffled:', quotesDeck.length, 'quotes');
@@ -3895,7 +3897,7 @@ async function getNextQuotes() {
 
     // Save current index
     try {
-        await chrome.storage.local.set({
+        await chrome.storage.sync.set({
             [STORAGE_KEYS.QUOTES_INDEX]: quotesIndex
         });
     } catch (error) {
@@ -4004,7 +4006,7 @@ async function changeIndividualQuote(quoteBox) {
 
     // Save current index
     try {
-        await chrome.storage.local.set({
+        await chrome.storage.sync.set({
             [STORAGE_KEYS.QUOTES_INDEX]: quotesIndex
         });
     } catch (error) {
@@ -4296,9 +4298,7 @@ function saveCurrentNote() {
 // Save all notes to storage
 async function saveNotes() {
     try {
-        await chrome.storage.local.set({
-            [STORAGE_KEYS.NOTES]: notes
-        });
+        await setWithChunking(STORAGE_KEYS.NOTES, notes);
     } catch (error) {
         console.error('Error saving notes:', error);
     }
@@ -4593,9 +4593,7 @@ function saveCurrentTodoList() {
 // Save all to-do lists to storage
 async function saveTodos() {
     try {
-        await chrome.storage.local.set({
-            [STORAGE_KEYS.TODOS]: todos
-        });
+        await setWithChunking(STORAGE_KEYS.TODOS, todos);
     } catch (error) {
         console.error('Error saving to-do lists:', error);
     }

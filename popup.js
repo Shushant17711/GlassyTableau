@@ -28,7 +28,7 @@ document.getElementById('addSite').addEventListener('click', async () => {
         }
 
         // Get existing tiles
-        const result = await chrome.storage.local.get('tiles');
+        const result = await chrome.storage.sync.get('tiles');
         const tiles = result.tiles || [];
 
         console.log('Existing tiles:', tiles);
@@ -55,10 +55,10 @@ document.getElementById('addSite').addEventListener('click', async () => {
 
         console.log('Saving tiles:', tiles);
 
-        await chrome.storage.local.set({ tiles });
+        await chrome.storage.sync.set({ tiles });
 
         // Verify it was saved
-        const verifyResult = await chrome.storage.local.get('tiles');
+        const verifyResult = await chrome.storage.sync.get('tiles');
         console.log('Verified saved tiles:', verifyResult.tiles);
 
         showStatus('✓ Site added successfully!', 'success');

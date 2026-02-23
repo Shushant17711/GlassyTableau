@@ -22,7 +22,7 @@ chrome.action.onClicked.addListener(async (tab) => {
     };
 
     // Store it directly in storage
-    const result = await chrome.storage.local.get('tiles');
+    const result = await chrome.storage.sync.get('tiles');
     const tiles = result.tiles || [];
 
     // Check if this URL is already added
@@ -49,7 +49,7 @@ chrome.action.onClicked.addListener(async (tab) => {
     };
 
     tiles.push(newTile);
-    await chrome.storage.local.set({ tiles });
+    await chrome.storage.sync.set({ tiles });
 
     // Show success notification
     chrome.notifications.create({
@@ -66,7 +66,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         console.log('Extension installed! Welcome to Glassy Tableau.');
 
         // Initialize settings with defaults (onboarding will handle bookmark import)
-        const result = await chrome.storage.local.get('settings');
+        const result = await chrome.storage.sync.get('settings');
         const settings = result.settings || {};
 
         // Set default settings
@@ -77,7 +77,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
         if (settings.darkModeEnabled === undefined) settings.darkModeEnabled = false;
         if (settings.onboardingComplete === undefined) settings.onboardingComplete = false;
 
-        await chrome.storage.local.set({ settings });
+        await chrome.storage.sync.set({ settings });
     }
 
     // Create context menu item
@@ -92,7 +92,7 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
     if (info.menuItemId === 'addToNotes' && info.selectionText) {
         // Get existing notes
-        const result = await chrome.storage.local.get('userNotes');
+        const result = await chrome.storage.sync.get('userNotes');
         let notes = result.userNotes || [];
 
         // Ensure notes is an array
@@ -113,6 +113,6 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         notes.push(newNote);
 
         // Save to storage
-        await chrome.storage.local.set({ userNotes: notes });
+        await chrome.storage.sync.set({ userNotes: notes });
     }
 });

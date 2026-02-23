@@ -222,6 +222,21 @@ For detailed troubleshooting, see `COMPLETE_DOCUMENTATION.txt`
 - **README.md** (this file) - Quick start guide
 - **COMPLETE_DOCUMENTATION.txt** - Full documentation with all features, functions, and technical details
 
+## 🔄 Cross-Device Sync
+
+The extension now uses Chrome's built-in sync feature to automatically sync your data across all devices. Your tiles, settings, notes, and to-dos sync automatically when you're signed in to Chrome. Large files like wallpapers remain device-specific. No setup required - just sign in to Chrome and it works.
+
+## 📝 Archived Documentation
+
+The following documentation has been consolidated into this README:
+
+- **Sync Implementation** - Chrome storage sync with automatic migration, 100KB quota, and fallback to local storage
+- **Storage Architecture** - Hybrid approach using chrome.storage.sync for small data and IndexedDB for large files
+- **Data Recovery** - Always export backups before uninstalling; Chrome clears all extension data on uninstall
+- **Developer Guide** - Storage utilities, quota management, migration system, and best practices
+- **Changelog** - Migrated from chrome.storage.local to chrome.storage.sync for cross-device synchronization
+- **Hotfixes** - Resolved duplicate STORAGE_KEYS declaration issue
+
 ## 🤝 Contributing
 
 Feel free to fork this project and submit pull requests for improvements!
