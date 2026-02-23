@@ -152,14 +152,16 @@ async function setWithChunking(key, data) {
         originalSize: dataSize
     };
 
-    // Remove the original key if it exists
+    // Save chunks FIRST before removing the original key
+    await chrome.storage.sync.set(chunksToSave);
+
+    // Now remove the original key if it exists
     try {
         await chrome.storage.sync.remove(key);
     } catch (e) {
         // Ignore if key doesn't exist
     }
 
-    await chrome.storage.sync.set(chunksToSave);
     console.log(`Saved ${key} in ${chunks.length} chunks`);
 }
 

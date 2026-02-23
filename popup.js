@@ -27,9 +27,8 @@ document.getElementById('addSite').addEventListener('click', async () => {
             return;
         }
 
-        // Get existing tiles
-        const result = await chrome.storage.sync.get('tiles');
-        const tiles = result.tiles || [];
+        // Get existing tiles using chunked storage
+        const tiles = await getChunkedData('tiles') || [];
 
         console.log('Existing tiles:', tiles);
 
@@ -47,7 +46,8 @@ document.getElementById('addSite').addEventListener('click', async () => {
             id: Date.now().toString(),
             name: tab.title,
             url: tab.url,
-            icon: tab.favIconUrl,
+            icon: tab.favIconUrl || `https://www.google.com/s2/favicons?domain=${new URL(tab.url).hostname}&sz=64`,
+            color: '#4169E1',
             type: 'link'
         };
 
@@ -55,11 +55,12 @@ document.getElementById('addSite').addEventListener('click', async () => {
 
         console.log('Saving tiles:', tiles);
 
-        await chrome.storage.sync.set({ tiles });
+        // Save using chunked storage
+        await setWithChunking('tiles', tiles);
 
         // Verify it was saved
-        const verifyResult = await chrome.storage.sync.get('tiles');
-        console.log('Verified saved tiles:', verifyResult.tiles);
+        const verifyResult = await getChunkedData('tiles');
+        console.log('Verified saved tiles:', verifyResult);
 
         showStatus('✓ Site added successfully!', 'success');
 

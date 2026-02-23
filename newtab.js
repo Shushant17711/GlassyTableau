@@ -1,3 +1,5 @@
+console.log('=== NEWTAB.JS LOADING ===');
+
 // Polyfill for requestIdleCallback
 window.requestIdleCallback = window.requestIdleCallback || function (cb, options) {
     const start = Date.now();
@@ -223,6 +225,9 @@ let selectedTileIndex = -1; // Currently selected tile index for keyboard naviga
 
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
+    console.log('=== PAGE LOADED ===');
+    console.log('Script is running');
+
     // Run migration from local to sync storage (one-time operation)
     if (typeof migrateToSync === 'function') {
         await migrateToSync();
@@ -233,6 +238,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadData(),
         loadQuotes()
     ]);
+
+    console.log('Data loaded, tiles count:', tiles.length);
 
     // Initialize critical UI immediately
     initializeClock();
@@ -288,10 +295,31 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Listen for storage changes from sync
     chrome.storage.onChanged.addListener((changes, namespace) => {
+        console.log('=== STORAGE CHANGED ===');
+        console.log('Namespace:', namespace);
+        console.log('Changes:', changes);
+        console.log('isSavingTiles:', isSavingTiles);
+
         if (namespace === 'sync') {
             if (changes[STORAGE_KEYS.TILES]) {
-                tiles = changes[STORAGE_KEYS.TILES].newValue || [];
-                renderTiles();
+                const newValue = changes[STORAGE_KEYS.TILES].newValue || [];
+                console.log('Storage change - Old tiles count:', tiles.length);
+                console.log('Storage change - New tiles count:', newValue.length);
+
+                // DISABLED: This was causing tiles to disappear when adding new ones
+                // The storage listener was reloading tiles before the save completed
+                // Only reload tiles from other tabs/devices, not from our own saves
+                // if (!isSavingTiles) {
+                //     console.log('Reloading tiles from storage change');
+                //     tiles = newValue;
+                //     console.log('New tiles value:', tiles);
+                //     renderTiles();
+                // } else {
+                //     console.log('Skipping reload because we just saved');
+                //     console.log('Current tiles:', tiles);
+                //     console.log('Storage tiles:', newValue);
+                // }
+                console.log('Storage listener disabled - tiles will not auto-reload');
             }
             if (changes[STORAGE_KEYS.NOTES]) {
                 const oldNotes = changes[STORAGE_KEYS.NOTES].oldValue || [];
@@ -424,13 +452,27 @@ async function loadData() {
     }
 }
 
+// Flag to prevent reloading tiles when we just saved them
+let isSavingTiles = false;
+
 // Save data to storage
 async function saveData() {
     try {
+        // Set flag BEFORE saving to prevent race condition
+        isSavingTiles = true;
+        console.log('saveData: Setting isSavingTiles = true');
+
         await setWithChunking(STORAGE_KEYS.TILES, tiles);
         console.log('Saved tiles:', tiles);
+
+        // Reset flag after a short delay to allow storage event to complete
+        setTimeout(() => {
+            console.log('saveData: Resetting isSavingTiles = false');
+            isSavingTiles = false;
+        }, 500); // Increased timeout to 500ms
     } catch (error) {
         console.error('Error saving data:', error);
+        isSavingTiles = false;
     }
 }
 
@@ -2113,6 +2155,7 @@ function initializeModals() {
     const deleteTile = document.getElementById('deleteTile');
 
     editForm.addEventListener('submit', (e) => {
+        console.log('=== FORM SUBMITTED ===');
         e.preventDefault();
         saveTileEdit();
     });
@@ -3129,6 +3172,9 @@ function openFolder(folder) {
 
 // Open edit modal
 function openEditModal(tile = null) {
+    console.log('=== OPENING EDIT MODAL ===');
+    console.log('Tile:', tile);
+
     const modal = document.getElementById('editModal');
     const form = document.getElementById('editForm');
     const title = document.getElementById('editTitle');
@@ -3153,6 +3199,7 @@ function openEditModal(tile = null) {
     }
 
     modal.style.display = 'block';
+    console.log('Modal opened');
 }
 // Handle custom icon upload with validation
 async function handleCustomIconUpload(event) {
@@ -3216,6 +3263,11 @@ async function saveTileEdit() {
             type: 'link'
         };
 
+        console.log('=== SAVING TILE ===');
+        console.log('Tile ID:', tileId);
+        console.log('Tile Data:', tileData);
+        console.log('Current tiles before save:', JSON.parse(JSON.stringify(tiles)));
+
         // Check if the icon is a data URL (custom icon)
         if (iconValue && iconValue.startsWith('data:')) {
             // Save custom icon to IndexedDB
@@ -3233,12 +3285,17 @@ async function saveTileEdit() {
             showToast('Tile updated', 'success');
         } else {
             // Add new tile
+            console.log('Adding new tile to array');
             tiles.push(tileData);
+            console.log('Tiles after push:', JSON.parse(JSON.stringify(tiles)));
             showToast('Tile added', 'success');
         }
 
+        console.log('Calling saveData...');
         await saveData();
+        console.log('saveData completed, calling renderTiles...');
         renderTiles();
+        console.log('renderTiles completed');
         document.getElementById('editModal').style.display = 'none';
     } catch (error) {
         console.error('Error saving tile:', error);
@@ -5188,8 +5245,8 @@ async function finishOnboarding() {
 
         console.log('Selected bookmarks to add:', selectedBookmarks);
 
-        // Save tiles
-        tiles = selectedBookmarks;
+        // Add selected bookmarks to existing tiles (don't overwrite!)
+        tiles = [...tiles, ...selectedBookmarks];
         await saveData();
 
         // Mark onboarding as complete
