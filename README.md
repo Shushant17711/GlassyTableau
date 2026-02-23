@@ -25,7 +25,7 @@ A stunning browser extension that transforms your new tab page into a beautiful,
 - **Time Display** - 10 different fonts (Orbitron, Outfit, Bebas, etc.)
 - **Time Format** - 12-hour or 24-hour format
 - **Smart Search** - Search with Google, Bing, or DuckDuckGo
-- **Inspirational Quotes** - Random quotes on each new tab
+- **Inspirational Quotes** - Random quotes on each new tab (customizable with AI-generated quotes)
 - **Backup & Restore** - Export/import your entire setup
 
 ### Default Settings
@@ -78,6 +78,54 @@ Want to set your own default background image?
 - Use 16:9 aspect ratio for best fit
 - Ensure text (time, quotes) is readable on your image
 - Users can still change wallpaper via settings
+
+### Customizing Quotes with AI
+Want to personalize your inspirational quotes? You can easily generate custom quotes using AI tools!
+
+1. **Generate Quotes with AI**:
+   - Use ChatGPT, Claude, Gemini, or any AI assistant
+   - Example prompt: *"Generate 50 inspirational quotes about productivity, creativity, and personal growth in JSON format with 'text' and 'author' fields"*
+   - Or get themed quotes: *"Create 30 quotes about coding and technology"*
+   - Request specific styles: *"Generate motivational quotes in the style of Stoic philosophy"*
+
+2. **Format Your Quotes**:
+   - AI will generate quotes in this format:
+   ```json
+   [
+     {
+       "text": "Your custom quote here",
+       "author": "Author Name"
+     },
+     {
+       "text": "Another inspiring quote",
+       "author": "Another Author"
+     }
+   ]
+   ```
+
+3. **Add to Extension**:
+   - Open `quotes.json` in the extension folder
+   - Replace existing quotes or add your new ones
+   - Keep the same JSON structure (array of objects with "text" and "author")
+   - Save the file
+
+4. **Reload Extension**:
+   - Go to `edge://extensions/` or `chrome://extensions/`
+   - Click reload button on the extension
+   - Open new tab to see your custom quotes!
+
+**AI Prompt Examples**:
+- *"Generate 40 short motivational quotes (under 100 characters) for daily inspiration"*
+- *"Create 25 quotes about mindfulness and focus for developers"*
+- *"Give me 30 funny programming quotes with real or fictional authors"*
+- *"Generate 50 quotes mixing wisdom from ancient philosophers and modern tech leaders"*
+
+**Tips**:
+- Mix different quote types for variety
+- Keep quotes concise for better display
+- Include diverse authors and perspectives
+- Test with a few quotes first before adding many
+- Back up original `quotes.json` before replacing
 
 ## 📁 Project Structure
 
