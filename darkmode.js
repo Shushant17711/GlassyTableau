@@ -1,4 +1,5 @@
 // Dark mode content script - applies to all tabs except new tab
+// Uses a lenient CSS filter approach with smart background-image preservation
 (function () {
     'use strict';
 
@@ -12,39 +13,27 @@
     }
 
     function isDarkThemeAlready() {
-        // Check if the page already has a dark theme
         const htmlElement = document.documentElement;
         const bodyElement = document.body;
 
-        // Wait a bit for styles to load
         if (!bodyElement) return false;
 
-        // Get computed background color of body and html
         const bodyBg = window.getComputedStyle(bodyElement).backgroundColor;
         const htmlBg = window.getComputedStyle(htmlElement).backgroundColor;
 
-        // Function to check if a color is dark
         const isDarkColor = (color) => {
             if (!color || color === 'transparent' || color === 'rgba(0, 0, 0, 0)') {
                 return false;
             }
-
-            // Parse RGB values
             const rgb = color.match(/\d+/g);
             if (!rgb || rgb.length < 3) return false;
-
-            // Calculate brightness (0-255)
             const brightness = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
-
-            // Consider it dark if brightness is less than 128
             return brightness < 128;
         };
 
-        // Check if either body or html has a dark background
         const bodyIsDark = isDarkColor(bodyBg);
         const htmlIsDark = isDarkColor(htmlBg);
 
-        // Also check for common dark mode indicators
         const hasDarkModeClass = htmlElement.classList.contains('dark') ||
             htmlElement.classList.contains('dark-mode') ||
             htmlElement.classList.contains('dark-theme') ||
@@ -59,56 +48,46 @@
         return bodyIsDark || htmlIsDark || hasDarkModeClass || hasDarkModeAttribute;
     }
 
-    // Helper: Calculate brightness of an RGB color (0-255)
-    function getBrightness(r, g, b) {
-        return (r * 299 + g * 587 + b * 114) / 1000;
+    // The counter-filter to "undo" the root inversion so media looks normal
+    const COUNTER_FILTER = 'invert(1) hue-rotate(180deg)';
+
+    /**
+     * Scan the DOM for elements that have CSS background-image set (not 'none')
+     * and apply a counter-filter so those background images are NOT inverted.
+     */
+    function preserveBackgroundImages() {
+        const allElements = document.querySelectorAll('*');
+        allElements.forEach((el) => {
+            // Skip already-handled media tags (handled by CSS rules)
+            const tag = el.tagName;
+            if (tag === 'IMG' || tag === 'VIDEO' || tag === 'CANVAS' ||
+                tag === 'IFRAME' || tag === 'PICTURE' || tag === 'SCRIPT' ||
+                tag === 'STYLE' || tag === 'NOSCRIPT' || tag === 'LINK') {
+                return;
+            }
+
+            // Already processed
+            if (el.hasAttribute('data-glassy-bg-preserved')) return;
+
+            try {
+                const computed = window.getComputedStyle(el);
+                const bgImage = computed.backgroundImage;
+
+                // Check if the element has a real background image (not just 'none' or gradients-only)
+                if (bgImage && bgImage !== 'none') {
+                    // Check if it contains an actual image URL (not just CSS gradients)
+                    const hasImageUrl = bgImage.includes('url(');
+                    if (hasImageUrl) {
+                        el.style.setProperty('filter', COUNTER_FILTER, 'important');
+                        el.setAttribute('data-glassy-bg-preserved', 'true');
+                    }
+                }
+            } catch (e) {
+                // Ignore inaccessible elements
+            }
+        });
     }
 
-    // Helper: Parse RGB/RGBA color string to [r, g, b, a]
-    function parseColor(colorStr) {
-        if (!colorStr || colorStr === 'transparent' || colorStr === 'rgba(0, 0, 0, 0)') {
-            return null;
-        }
-        const match = colorStr.match(/\d+/g);
-        if (!match || match.length < 3) return null;
-        return [parseInt(match[0]), parseInt(match[1]), parseInt(match[2]), match[3] ? parseFloat(match[3]) : 1];
-    }
-
-    // Helper: Convert light color to dark equivalent
-    function convertToDark(r, g, b, a = 1) {
-        const brightness = getBrightness(r, g, b);
-
-        // If it's already dark, leave it alone
-        if (brightness < 128) {
-            return `rgba(${r}, ${g}, ${b}, ${a})`;
-        }
-
-        // Convert light to dark by inverting and adjusting
-        const newR = Math.max(0, 255 - r - 30);
-        const newG = Math.max(0, 255 - g - 30);
-        const newB = Math.max(0, 255 - b - 30);
-
-        return `rgba(${newR}, ${newG}, ${newB}, ${a})`;
-    }
-
-    // Helper: Convert dark text to light text
-    function convertTextToDark(r, g, b, a = 1) {
-        const brightness = getBrightness(r, g, b);
-
-        // If text is already light, leave it
-        if (brightness > 128) {
-            return `rgba(${r}, ${g}, ${b}, ${a})`;
-        }
-
-        // Convert dark text to light
-        const newR = Math.min(255, 255 - r + 30);
-        const newG = Math.min(255, 255 - g + 30);
-        const newB = Math.min(255, 255 - b + 30);
-
-        return `rgba(${newR}, ${newG}, ${newB}, ${a})`;
-    }
-
-    // Main function: Traverse DOM and apply dark mode intelligently
     function applyDarkMode() {
         // Check if dark mode already applied
         if (document.documentElement.hasAttribute('data-glassy-dark-mode')) {
@@ -124,124 +103,64 @@
         // Mark as processed
         document.documentElement.setAttribute('data-glassy-dark-mode', 'true');
 
-        // Add base styles for images and media (preserve them)
         const style = document.createElement('style');
         style.id = 'glassy-dark-mode-style';
         style.textContent = `
-            /* Preserve images and media */
-            img, picture, video, canvas, svg, iframe {
-                opacity: 1 !important;
+            /* Lenient dark mode: soft inversion on the root */
+            html[data-glassy-dark-mode="true"] {
+                filter: invert(0.85) hue-rotate(180deg) !important;
             }
-            
-            /* Force white placeholder text for all input fields */
-            input::placeholder,
-            textarea::placeholder {
-                color: #ffffff !important;
-                opacity: 0.8 !important;
+
+            /* Re-invert media elements so images/videos look normal */
+            html[data-glassy-dark-mode="true"] img,
+            html[data-glassy-dark-mode="true"] picture,
+            html[data-glassy-dark-mode="true"] picture > source,
+            html[data-glassy-dark-mode="true"] video,
+            html[data-glassy-dark-mode="true"] canvas,
+            html[data-glassy-dark-mode="true"] iframe,
+            html[data-glassy-dark-mode="true"] svg image,
+            html[data-glassy-dark-mode="true"] [role="img"],
+            html[data-glassy-dark-mode="true"] .avatar,
+            html[data-glassy-dark-mode="true"] .thumbnail,
+            html[data-glassy-dark-mode="true"] .logo,
+            html[data-glassy-dark-mode="true"] .emoji {
+                filter: invert(1) hue-rotate(180deg) !important;
             }
-            
-            /* Force white text in input fields */
-            input:not([type="image"]):not([type="checkbox"]):not([type="radio"]),
-            textarea,
-            select {
-                color: #ffffff !important;
+
+            /* Elements with inline background-image style */
+            html[data-glassy-dark-mode="true"] [style*="background-image"],
+            html[data-glassy-dark-mode="true"] [style*="background:url"],
+            html[data-glassy-dark-mode="true"] [style*="background: url"] {
+                filter: invert(1) hue-rotate(180deg) !important;
             }
-            
-            /* Smooth transitions */
-            * {
-                transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease !important;
+
+            /* Smooth transition when toggling */
+            html {
+                transition: filter 0.3s ease !important;
             }
         `;
         (document.head || document.body || document.documentElement).appendChild(style);
 
-        // Process all elements
-        function processElement(element) {
-            // Skip certain elements
-            if (element.tagName === 'SCRIPT' || element.tagName === 'STYLE' || element.tagName === 'NOSCRIPT') {
-                return;
-            }
+        // Scan for elements with CSS class-based background-image and preserve them
+        preserveBackgroundImages();
 
-            // Skip images and media elements
-            if (element.tagName === 'IMG' || element.tagName === 'VIDEO' ||
-                element.tagName === 'CANVAS' || element.tagName === 'SVG' ||
-                element.tagName === 'IFRAME' || element.tagName === 'PICTURE') {
-                return;
-            }
-
-            try {
-                const computed = window.getComputedStyle(element);
-
-                // Get background color
-                const bgColor = computed.backgroundColor;
-                const bgImage = computed.backgroundImage;
-
-                // Only modify background if there's no background image
-                if (bgImage === 'none' || !bgImage) {
-                    const bgParsed = parseColor(bgColor);
-                    if (bgParsed) {
-                        const [r, g, b, a] = bgParsed;
-                        const brightness = getBrightness(r, g, b);
-
-                        // Convert light backgrounds to dark
-                        if (brightness > 128 && a > 0.1) {
-                            const newColor = convertToDark(r, g, b, a);
-                            element.style.setProperty('background-color', newColor, 'important');
-                        }
-                    }
-                }
-
-                // Get text color
-                const textColor = computed.color;
-                const textParsed = parseColor(textColor);
-                if (textParsed) {
-                    const [r, g, b, a] = textParsed;
-                    const brightness = getBrightness(r, g, b);
-
-                    // Convert dark text to light
-                    if (brightness < 128) {
-                        const newColor = convertTextToDark(r, g, b, a);
-                        element.style.setProperty('color', newColor, 'important');
-                    }
-                }
-
-                // Handle borders
-                const borderColor = computed.borderTopColor;
-                const borderParsed = parseColor(borderColor);
-                if (borderParsed) {
-                    const [r, g, b, a] = borderParsed;
-                    const brightness = getBrightness(r, g, b);
-
-                    if (brightness > 128) {
-                        const newColor = convertToDark(r, g, b, a);
-                        element.style.setProperty('border-color', newColor, 'important');
-                    }
-                }
-
-            } catch (e) {
-                // Ignore errors for inaccessible elements
-            }
-        }
-
-        // Process all elements in the document
-        function processAllElements() {
-            const allElements = document.querySelectorAll('*');
-            allElements.forEach(processElement);
-        }
-
-        // Initial processing
-        processAllElements();
-
-        // Watch for new elements added to the page
+        // Watch for new elements added to the page and preserve their bg images too
         const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                mutation.addedNodes.forEach((node) => {
+            let needsScan = false;
+            for (const mutation of mutations) {
+                for (const node of mutation.addedNodes) {
                     if (node.nodeType === 1) { // Element node
-                        processElement(node);
-                        // Process children too
-                        node.querySelectorAll && node.querySelectorAll('*').forEach(processElement);
+                        needsScan = true;
+                        break;
                     }
-                });
-            });
+                }
+                if (needsScan) break;
+            }
+            if (needsScan) {
+                // Debounce: wait a tiny bit for batch DOM changes to settle
+                clearTimeout(window._glassyBgScanTimer);
+                window._glassyBgScanTimer = setTimeout(preserveBackgroundImages, 150);
+            }
         });
 
         observer.observe(document.documentElement, {
@@ -249,10 +168,9 @@
             subtree: true
         });
 
-        // Store observer for cleanup
         window._glassyDarkModeObserver = observer;
 
-        console.log('Glassy Tab: Intelligent dark mode applied');
+        console.log('Glassy Tab: Lenient dark mode applied (with bg-image preservation)');
     }
 
     function removeDarkMode() {
@@ -271,12 +189,17 @@
             delete window._glassyDarkModeObserver;
         }
 
-        // Remove all inline styles we added
-        document.querySelectorAll('[data-glassy-dark-mode]').forEach(el => {
-            el.style.removeProperty('background-color');
-            el.style.removeProperty('color');
-            el.style.removeProperty('border-color');
+        // Clean up preserved background image filters
+        document.querySelectorAll('[data-glassy-bg-preserved]').forEach(el => {
+            el.style.removeProperty('filter');
+            el.removeAttribute('data-glassy-bg-preserved');
         });
+
+        // Clear any pending scan timer
+        if (window._glassyBgScanTimer) {
+            clearTimeout(window._glassyBgScanTimer);
+            delete window._glassyBgScanTimer;
+        }
 
         console.log('Glassy Tab: Dark mode removed');
     }
@@ -284,17 +207,16 @@
     // Initialize dark mode
     async function initDarkMode() {
         try {
-            // Load dark mode setting
             const result = await chrome.storage.sync.get('settings');
             const settings = result.settings || {};
 
             console.log('Glassy Tab: Dark mode setting:', settings.darkModeEnabled);
 
             if (settings.darkModeEnabled) {
-                // Wait a bit for page styles to load before checking if it's already dark
+                // Wait a brief moment for page styles to load
                 setTimeout(() => {
                     applyDarkMode();
-                }, 100);
+                }, 150);
             }
         } catch (error) {
             console.error('Glassy Tab: Error loading dark mode setting:', error);

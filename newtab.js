@@ -176,6 +176,51 @@ async function removeCustomIconFromDB(tileId) {
     }
 }
 
+// Cache favicon for a tile by fetching it as a data URL and storing on the tile object.
+// This runs AFTER the tile is saved so it never delays page load.
+async function cacheFaviconForTile(tileData) {
+    // Only cache if the tile doesn't already have a custom icon
+    if (tileData.customIcon || (tileData.icon && tileData.icon.startsWith('data:'))) return;
+
+    try {
+        // Build the favicon URL (32px is small and fast)
+        const domain = new URL(tileData.url).hostname;
+        const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
+
+        const response = await fetch(faviconUrl);
+        if (!response.ok) return;
+
+        const blob = await response.blob();
+        const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+
+        // Update the tile object in the tiles array (works for both main tiles and folder items)
+        function updateTileCachedIcon(tilesList) {
+            for (const t of tilesList) {
+                if (t.id === tileData.id) {
+                    t.cachedIcon = dataUrl;
+                    return true;
+                }
+                if (t.type === 'folder' && t.items) {
+                    if (updateTileCachedIcon(t.items)) return true;
+                }
+            }
+            return false;
+        }
+
+        if (updateTileCachedIcon(tiles)) {
+            // Save silently in background — this is non-blocking
+            saveData();
+        }
+    } catch (e) {
+        // Network error or invalid URL — silently ignore
+    }
+}
+
 // Global state
 let tiles = [];
 let settings = {
@@ -2492,41 +2537,30 @@ function createTileElement(tile, isInsideFolder = false) {
             const previewIcon = document.createElement('img');
             previewIcon.className = 'folder-preview-icon';
 
-            // Load custom icon from IndexedDB if available
+            // === INSTANT ICON for folder preview ===
+            if (item.customIcon) {
+                previewIcon.src = item.customIcon;
+            } else if (item.cachedIcon) {
+                previewIcon.src = item.cachedIcon;
+            } else if (item.icon && !item.icon.startsWith('data:')) {
+                previewIcon.src = item.icon;
+            } else {
+                previewIcon.src = `https://www.google.com/s2/favicons?domain=${item.url}&sz=32`;
+            }
+            previewIcon.onerror = () => {
+                previewIcon.src = `https://www.google.com/s2/favicons?domain=${item.url}&sz=32`;
+            };
+
+            // Upgrade to custom icon from IndexedDB in background
             loadCustomIconFromDB(item.id).then(customIconDataUrl => {
                 if (customIconDataUrl) {
-                    // Use custom icon if present
                     previewIcon.src = customIconDataUrl;
                     previewIcon.onerror = () => {
-                        // Fall back to favicon if custom icon fails to load
-                        if (item.icon) {
-                            previewIcon.src = item.icon;
-                        } else {
-                            previewIcon.src = `https://www.google.com/s2/favicons?domain=${item.url}&sz=32`;
-                        }
+                        previewIcon.src = item.cachedIcon || `https://www.google.com/s2/favicons?domain=${item.url}&sz=32`;
                     };
-                } else {
-                    // Fall back to default icon logic if no custom icon
-                    if (item.icon) {
-                        previewIcon.src = item.icon;
-                        previewIcon.onerror = () => {
-                            previewIcon.src = `https://www.google.com/s2/favicons?domain=${item.url}&sz=32`;
-                        };
-                    } else {
-                        previewIcon.src = `https://www.google.com/s2/favicons?domain=${item.url}&sz=32`;
-                    }
                 }
             }).catch(error => {
                 console.log('Error loading custom icon for folder preview:', error);
-                // Fall back to default icon logic on error
-                if (item.icon) {
-                    previewIcon.src = item.icon;
-                    previewIcon.onerror = () => {
-                        previewIcon.src = `https://www.google.com/s2/favicons?domain=${item.url}&sz=32`;
-                    };
-                } else {
-                    previewIcon.src = `https://www.google.com/s2/favicons?domain=${item.url}&sz=32`;
-                }
             });
 
             previewTile.appendChild(previewIcon);
@@ -2621,41 +2655,41 @@ function createTileElement(tile, isInsideFolder = false) {
         const icon = document.createElement('img');
         icon.className = 'tile-icon';
 
-        // Load custom icon from IndexedDB if available
+        // === INSTANT ICON: Set image src synchronously before any async work ===
+        // Use cached favicon data URL if available (stored on tile object at save-time).
+        // This means the icon appears immediately with zero delay on new-tab open.
+        if (tile.customIcon) {
+            icon.src = tile.customIcon;
+        } else if (tile.cachedIcon) {
+            icon.src = tile.cachedIcon;
+        } else if (tile.icon && !tile.icon.startsWith('data:')) {
+            icon.src = tile.icon;
+        } else {
+            icon.src = `https://www.google.com/s2/favicons?domain=${tile.url}&sz=64`;
+        }
+        icon.onerror = () => {
+            icon.src = `https://www.google.com/s2/favicons?domain=${tile.url}&sz=64`;
+        };
+
+        // Load high-res custom icon from IndexedDB in background (upgrades from cached version)
         loadCustomIconFromDB(tile.id).then(customIconDataUrl => {
             if (customIconDataUrl) {
-                // Use custom icon if present
+                // Swap in the full-quality custom icon seamlessly
                 icon.src = customIconDataUrl;
                 icon.onerror = () => {
-                    // Fall back to favicon if custom icon fails to load
-                    if (tile.icon) {
+                    if (tile.cachedIcon) {
+                        icon.src = tile.cachedIcon;
+                    } else if (tile.icon) {
                         icon.src = tile.icon;
                     } else {
                         icon.src = `https://www.google.com/s2/favicons?domain=${tile.url}&sz=64`;
                     }
                 };
-            } else {
-                // Fall back to default icon logic if no custom icon
-                if (tile.icon) {
-                    icon.src = tile.icon;
-                    icon.onerror = () => {
-                        icon.src = `https://www.google.com/s2/favicons?domain=${tile.url}&sz=64`;
-                    };
-                } else {
-                    icon.src = `https://www.google.com/s2/favicons?domain=${tile.url}&sz=64`;
-                }
             }
+            // If no custom icon in DB, the instant icon already set above is correct — nothing to do.
         }).catch(error => {
             console.log('Error loading custom icon:', error);
-            // Fall back to default icon logic on error
-            if (tile.icon) {
-                icon.src = tile.icon;
-                icon.onerror = () => {
-                    icon.src = `https://www.google.com/s2/favicons?domain=${tile.url}&sz=64`;
-                };
-            } else {
-                icon.src = `https://www.google.com/s2/favicons?domain=${tile.url}&sz=64`;
-            }
+            // Instant icon is already showing — nothing extra needed
         });
 
         tileEl.appendChild(icon);
@@ -3274,13 +3308,20 @@ async function saveTileEdit() {
             await saveCustomIconToDB(tileData.id, iconValue);
             // Store reference in tile object
             tileData.customIcon = iconValue;
+            // For custom uploads, use it directly as the cached icon too
+            tileData.cachedIcon = iconValue;
         }
 
         if (tileId) {
             // Edit existing tile
             const index = tiles.findIndex(t => t.id === tileId);
             if (index !== -1) {
+                // Preserve existing cachedIcon unless we have a new one
+                const existingCached = tiles[index].cachedIcon;
                 tiles[index] = { ...tiles[index], ...tileData };
+                if (!tileData.cachedIcon && existingCached) {
+                    tiles[index].cachedIcon = existingCached;
+                }
             }
             showToast('Tile updated', 'success');
         } else {
@@ -3297,6 +3338,12 @@ async function saveTileEdit() {
         renderTiles();
         console.log('renderTiles completed');
         document.getElementById('editModal').style.display = 'none';
+
+        // Fire-and-forget: cache favicon in background so next new-tab open shows it instantly.
+        // This does NOT block the current render or wallpaper loading.
+        if (!tileData.customIcon) {
+            cacheFaviconForTile(tileData);
+        }
     } catch (error) {
         console.error('Error saving tile:', error);
         showToast('Error saving tile. Please try again.', 'error');
@@ -3781,14 +3828,60 @@ function initializeMainGridDropZone() {
 
 
 // Export state to JSON file
+// Load all custom icons from IndexedDB
+async function getAllCustomIconsFromDB() {
+    try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([CUSTOM_ICONS_STORE], 'readonly');
+            const store = transaction.objectStore(CUSTOM_ICONS_STORE);
+            const icons = {};
+
+            const request = store.openCursor();
+            request.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    icons[cursor.key] = cursor.value;
+                    cursor.continue();
+                }
+            };
+
+            transaction.oncomplete = () => resolve(icons);
+            transaction.onerror = () => reject(transaction.error);
+        });
+    } catch (error) {
+        console.error('Error loading all custom icons from IndexedDB:', error);
+        return {};
+    }
+}
+
+// Clear all custom icons from IndexedDB
+async function clearAllCustomIconsFromDB() {
+    try {
+        const db = await openDB();
+        return new Promise((resolve, reject) => {
+            const transaction = db.transaction([CUSTOM_ICONS_STORE], 'readwrite');
+            const store = transaction.objectStore(CUSTOM_ICONS_STORE);
+            store.clear();
+
+            transaction.oncomplete = () => resolve();
+            transaction.onerror = () => reject(transaction.error);
+        });
+    } catch (error) {
+        console.error('Error clearing custom icons from IndexedDB:', error);
+    }
+}
+
 async function exportState() {
     try {
         showToast('Preparing export...', 'info');
 
-        // Load data with chunking support
+        // Load all data with chunking support
         const tiles_data = await getChunkedData(STORAGE_KEYS.TILES);
         const settings_data = await getChunkedData(STORAGE_KEYS.SETTINGS);
         const quotesDeck_data = await getChunkedData(STORAGE_KEYS.QUOTES_DECK);
+        const notes_data = await getChunkedData(STORAGE_KEYS.NOTES);
+        const todos_data = await getChunkedData(STORAGE_KEYS.TODOS);
 
         const result = await chrome.storage.sync.get([
             STORAGE_KEYS.QUOTES_INDEX
@@ -3797,15 +3890,21 @@ async function exportState() {
         // Get wallpaper from IndexedDB
         const { wallpaper, wallpaperType } = await loadWallpaperFromDB();
 
+        // Get all custom tile icons from IndexedDB
+        const customIcons = await getAllCustomIconsFromDB();
+
         const exportData = {
             tiles: tiles_data || [],
             settings: settings_data || { tileSize: 'medium', showQuotes: true, quotePosition: 'both', timeFont: 'outfit', searchEngine: 'google', timeFormat: '24h', tileTheme: 'custom', applyThemeToSearchbar: false },
+            notes: notes_data || [],
+            todos: todos_data || [],
             wallpaper: wallpaper || null,
             wallpaperType: wallpaperType || 'image',
+            customIcons: Object.keys(customIcons).length > 0 ? customIcons : null,
             quotesDeck: quotesDeck_data || [],
             quotesIndex: result[STORAGE_KEYS.QUOTES_INDEX] || 0,
             exportDate: new Date().toISOString(),
-            version: '1.0.0'
+            version: '2.0.0'
         };
 
         const dataStr = JSON.stringify(exportData, null, 2);
@@ -3845,7 +3944,7 @@ async function importState(event) {
 
         // Confirm before importing
         const confirmed = await showConfirmModal(
-            'This will replace your current tiles and settings. Continue?',
+            'This will replace ALL your data (tiles, settings, notes, todos, wallpaper, and custom icons). Continue?',
             'Import State',
             false
         );
@@ -3860,11 +3959,33 @@ async function importState(event) {
         await setWithChunking(STORAGE_KEYS.QUOTES_DECK, importData.quotesDeck || []);
         await chrome.storage.sync.set({ [STORAGE_KEYS.QUOTES_INDEX]: importData.quotesIndex || 0 });
 
+        // Import notes (handle both new exports with 'notes' and old ones without)
+        if (importData.notes && Array.isArray(importData.notes)) {
+            await setWithChunking(STORAGE_KEYS.NOTES, importData.notes);
+        } else {
+            await setWithChunking(STORAGE_KEYS.NOTES, []);
+        }
+
+        // Import todos (handle both new exports with 'todos' and old ones without)
+        if (importData.todos && Array.isArray(importData.todos)) {
+            await setWithChunking(STORAGE_KEYS.TODOS, importData.todos);
+        } else {
+            await setWithChunking(STORAGE_KEYS.TODOS, []);
+        }
+
         // Import wallpaper to IndexedDB if present
         if (importData.wallpaper) {
             await saveWallpaperToDB(importData.wallpaper, importData.wallpaperType || 'image');
         } else {
             await removeWallpaperFromDB();
+        }
+
+        // Import custom icons to IndexedDB if present
+        await clearAllCustomIconsFromDB();
+        if (importData.customIcons && typeof importData.customIcons === 'object') {
+            for (const [tileId, dataUrl] of Object.entries(importData.customIcons)) {
+                await saveCustomIconToDB(tileId, dataUrl);
+            }
         }
 
         // Reload the page to apply changes
