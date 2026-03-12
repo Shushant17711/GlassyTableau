@@ -1,6 +1,7 @@
 # 🎨 Glassy Tableau - Beautiful New Tab Extension
 
 A stunning browser extension that transforms your new tab page into a beautiful, glassmorphic interface with unlimited customizable tiles, folders, notes, and more.
+Site Link = https://glassytableau.unaux.com/?i=2
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue)
 ![Manifest](https://img.shields.io/badge/manifest-v3-green)
